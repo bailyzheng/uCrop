@@ -7,6 +7,7 @@ import android.graphics.PorterDuff;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -107,28 +108,37 @@ public class UCropFragment extends Fragment {
             callback = (UCropFragmentCallback) getParentFragment();
         else if (context instanceof UCropFragmentCallback)
             callback = (UCropFragmentCallback) context;
-        else
-            throw new IllegalArgumentException(context.toString()
-                    + " must implement UCropFragmentCallback");
+//        else
+//            throw new IllegalArgumentException(context.toString()
+//                    + " must implement UCropFragmentCallback");
     }
 
     public void setCallback(UCropFragmentCallback callback) {
         this.callback = callback;
     }
 
+    private View mViewContent;
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View rootView = inflater.inflate(R.layout.ucrop_fragment_photobox, container, false);
+        if (mViewContent == null) {
+            mViewContent = inflater.inflate(R.layout.ucrop_fragment_photobox, container, false);
+            Bundle args = getArguments();
 
-        Bundle args = getArguments();
+            setupViews(mViewContent, args);
+            setImageData(args);
+            setInitialState();
+            addBlockingView(mViewContent);
+        } else {
+            ViewGroup parent = (ViewGroup)mViewContent.getParent();
+            if (parent != null) {
+                parent.removeView(mViewContent);
+            }
+        }
 
-        setupViews(rootView, args);
-        setImageData(args);
-        setInitialState();
-        addBlockingView(rootView);
 
-        return rootView;
+        return mViewContent;
     }
 
 
@@ -521,19 +531,24 @@ public class UCropFragment extends Fragment {
     }
 
     public void cropAndSaveImage() {
-        mBlockingView.setClickable(true);
+        Log.e(TAG, "cropAndSaveImage enter");
+        if (mBlockingView != null) {
+            mBlockingView.setClickable(true);
+        }
         callback.loadingProgress(true);
 
         mGestureCropImageView.cropAndSaveImage(mCompressFormat, mCompressQuality, new BitmapCropCallback() {
-
             @Override
             public void onBitmapCropped(@NonNull Uri resultUri, int offsetX, int offsetY, int imageWidth, int imageHeight) {
+                Log.e(TAG, "onBitmapCropped");
                 callback.onCropFinish(getResult(resultUri, mGestureCropImageView.getTargetAspectRatio(), offsetX, offsetY, imageWidth, imageHeight));
                 callback.loadingProgress(false);
             }
 
             @Override
             public void onCropFailure(@NonNull Throwable t) {
+                Log.e(TAG, "onCropFailure");
+                t.printStackTrace();
                 callback.onCropFinish(getError(t));
             }
         });
